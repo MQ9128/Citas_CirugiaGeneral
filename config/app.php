@@ -65,7 +65,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => 'America/Bogota',
     'appointment_duration' => env('APPOINTMENT_DURATION_MINUTES', 20),
 
     /*

@@ -24,7 +24,7 @@ class PublicController extends Controller
     public function showDoctor(Doctor $doctor)
     {
         $doctor->load('schedules');
-        
+
         // Obtener espacios disponibles de la próxima semana
         $availableSlots = $this->getAvailableSlots($doctor);
 
@@ -49,7 +49,7 @@ class PublicController extends Controller
     {
         $slots = [];
         $now = Carbon::now();
-        $duration = (int) config('app.appointment_duration', 20); // Convertir a int
+        $duration = (int) config('app.appointment_duration', 20);
 
         for ($i = 0; $i < $days; $i++) {
             $date = $now->copy()->addDays($i);
@@ -60,16 +60,13 @@ class PublicController extends Controller
                 ->get();
 
             foreach ($schedules as $schedule) {
-                // Crear Carbon instances correctamente
                 $startTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $schedule->start_time);
                 $endTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $schedule->end_time);
 
-                // Clonar para evitar mutación
                 $currentSlot = $startTime->copy();
 
                 while ($currentSlot->lessThan($endTime)) {
                     if ($currentSlot->greaterThan($now)) {
-                        // Verificar si hay cita en este horario
                         $hasAppointment = Appointment::where('doctor_id', $doctor->id)
                             ->whereBetween('appointment_date', [
                                 $currentSlot->copy()->subMinute(),
@@ -80,6 +77,7 @@ class PublicController extends Controller
 
                         if (!$hasAppointment) {
                             $slots[] = [
+                                // Enviar en formato ISO para que JavaScript lo pueda parsear
                                 'datetime' => $currentSlot->toIso8601String(),
                                 'formatted' => $currentSlot->locale('es')->isoFormat('ddd DD/MM/YYYY - hh:mm A')
                             ];

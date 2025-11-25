@@ -43,20 +43,33 @@ class AppointmentController extends Controller
     // Crear cita desde el formulario público
 public function store(Request $request)
 {
+    // Debug: Ver qué datos llegan
+    \Log::info('Datos recibidos:', $request->all());
+
     $validated = $request->validate([
         'doctor_id' => 'required|exists:doctors,id',
         'patient_name' => 'required|string|max:255',
         'patient_email' => 'required|email|max:255',
         'patient_phone' => 'required|string|max:20',
         'reason' => 'nullable|string|max:500',
-        'appointment_date' => 'required|date|after:now',
+        'appointment_date' => 'required|date_format:Y-m-d H:i:s', // ← Cambio aquí
+    ], [
+        'appointment_date.date_format' => 'El formato de la fecha es inválido.',
+        'appointment_date.required' => 'La fecha de la cita es obligatoria.',
     ]);
 
     try {
         $appointmentDate = Carbon::parse($validated['appointment_date']);
         $duration = (int) config('app.appointment_duration', 20);
 
-        // Validar que no haya colisión de citas
+        // Validar que la fecha sea futura
+        if ($appointmentDate->isPast()) {
+            return back()->withErrors([
+                'appointment_date' => 'No puedes agendar una cita en el pasado.'
+            ])->withInput();
+        }
+
+        // Resto del código igual...
         $hasConflict = Appointment::where('doctor_id', $validated['doctor_id'])
             ->whereBetween('appointment_date', [
                 $appointmentDate->copy()->subMinutes($duration),
@@ -71,7 +84,6 @@ public function store(Request $request)
             ])->withInput();
         }
 
-        // Validar que el horario esté dentro de la disponibilidad del médico
         $doctor = Doctor::with('schedules')->findOrFail($validated['doctor_id']);
         $dayOfWeek = $appointmentDate->dayOfWeek;
         $timeSlot = $appointmentDate->format('H:i:s');
@@ -88,7 +100,6 @@ public function store(Request $request)
             ])->withInput();
         }
 
-        // Crear la cita
         $appointment = Appointment::create([
             'doctor_id' => $validated['doctor_id'],
             'patient_name' => $validated['patient_name'],
@@ -100,7 +111,9 @@ public function store(Request $request)
             'status' => 'pendiente',
         ]);
 
-        // Enviar correo de confirmación
+        // Log de éxito
+        \Log::info('Cita creada:', ['id' => $appointment->id]);
+
         try {
             Mail::to($validated['patient_email'])
                 ->send(new AppointmentCreated($appointment));
@@ -112,10 +125,13 @@ public function store(Request $request)
             ->with('success', '¡Cita agendada exitosamente! Recibirás un correo de confirmación.');
 
     } catch (\Exception $e) {
-        \Log::error('Error al crear cita: ' . $e->getMessage());
+        \Log::error('Error al crear cita:', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
         
         return back()->withErrors([
-            'error' => 'Hubo un error al agendar la cita. Por favor intenta nuevamente.'
+            'error' => 'Hubo un error al agendar la cita: ' . $e->getMessage()
         ])->withInput();
     }
 }

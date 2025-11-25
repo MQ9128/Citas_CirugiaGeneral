@@ -30,8 +30,21 @@ const slotsByDay = computed(() => {
         }
         grouped[dateKey].slots.push(slot);
     });
-    return Object.values(grouped).slice(0, 7); // Próximos 7 días
+    return Object.values(grouped).slice(0, 7);
 });
+
+// Función para formatear fecha correctamente para la URL
+const formatDateForUrl = (datetime) => {
+    const date = new Date(datetime);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = '00';
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
 
 const selectSlot = (slot) => {
     selectedDate.value = slot.datetime;
@@ -109,12 +122,12 @@ const selectSlot = (slot) => {
                             <div class="text-xs text-gray-500">{{ day.month }}</div>
                         </div>
 
-                        <!-- Slots disponibles -->
+                        <!-- Slots disponibles - AQUÍ ESTÁ EL CAMBIO IMPORTANTE -->
                         <div class="space-y-2">
                             <Link
                                 v-for="slot in day.slots"
                                 :key="slot.datetime"
-                                :href="`/appointments/new?doctor=${doctor.slug}&start=${slot.datetime}`"
+                                :href="`/appointments/new?doctor=${doctor.slug}&start=${encodeURIComponent(formatDateForUrl(slot.datetime))}`"
                                 class="block w-full py-2 px-3 text-center bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-600 hover:text-white transition font-medium text-sm"
                             >
                                 {{ new Date(slot.datetime).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: true }) }}
