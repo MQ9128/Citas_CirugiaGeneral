@@ -67,8 +67,10 @@ class DashboardController extends Controller
             ->whereIn('status', ['pendiente', 'confirmada']);
 
         if ($doctorSlug) {
-            $doctor = Doctor::where('slug', $doctorSlug)->firstOrFail();
-            $query->where('doctor_id', $doctor->id);
+            $doctor = Doctor::where('slug', $doctorSlug)->first();
+            if ($doctor) {
+                $query->where('doctor_id', $doctor->id);
+            }
         }
 
         $appointments = $query->orderBy('appointment_date', 'asc')->get();
