@@ -20,11 +20,11 @@ class Appointment extends Model
         'appointment_date' => 'datetime',
     ];
 
-    // Route Model Binding por slug
-    public function getRouteKeyName()
-    {
-        return 'slug';
-    }
+    // IMPORTANTE: Comentar o eliminar este método para usar ID
+    // public function getRouteKeyName()
+    // {
+    //     return 'slug';
+    // }
 
     protected static function boot()
     {

@@ -13,7 +13,7 @@ const selectedDoctor = ref(props.filters.doctor_id || '');
 const selectedStatus = ref(props.filters.status || '');
 
 const applyFilters = () => {
-    router.get('/appointments', {
+    router.get(route('admin.appointments.index'), {
         doctor_id: selectedDoctor.value,
         status: selectedStatus.value
     }, {
@@ -128,7 +128,7 @@ const formatDateTime = (datetime) => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">{{ formatDateTime(appointment.appointment_date)
-                                        }}</div>
+                                    }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span :class="getStatusColor(appointment.status)"
@@ -138,18 +138,18 @@ const formatDateTime = (datetime) => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div class="flex gap-2">
-                                        <Link :href="`/appointments/${appointment.id}`"
+                                        <Link :href="route('admin.appointments.show', appointment.id)"
                                             class="text-indigo-600 hover:text-indigo-900">
                                         Ver
                                         </Link>
                                         <Link v-if="appointment.status === 'pendiente'"
-                                            :href="`/appointments/${appointment.slug}/accept`" method="post" as="button"
-                                            class="text-green-600 hover:text-green-900">
+                                            :href="route('admin.appointments.accept', appointment.id)" method="post"
+                                            as="button" class="text-green-600 hover:text-green-900">
                                         Aceptar
                                         </Link>
                                         <Link v-if="appointment.status === 'pendiente'"
-                                            :href="`/appointments/${appointment.slug}/reject`" method="post" as="button"
-                                            class="text-red-600 hover:text-red-900">
+                                            :href="route('admin.appointments.reject', appointment.id)" method="post"
+                                            as="button" class="text-red-600 hover:text-red-900">
                                         Rechazar
                                         </Link>
                                     </div>

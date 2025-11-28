@@ -41,100 +41,94 @@ class AppointmentController extends Controller
     }
 
     // Crear cita desde el formulario público
-public function store(Request $request)
-{
-    // Debug: Ver qué datos llegan
-    \Log::info('Datos recibidos:', $request->all());
+    public function store(Request $request)
+    {
+        \Log::info('Datos recibidos:', $request->all());
 
-    $validated = $request->validate([
-        'doctor_id' => 'required|exists:doctors,id',
-        'patient_name' => 'required|string|max:255',
-        'patient_email' => 'required|email|max:255',
-        'patient_phone' => 'required|string|max:20',
-        'reason' => 'nullable|string|max:500',
-        'appointment_date' => 'required|date_format:Y-m-d H:i:s', // ← Cambio aquí
-    ], [
-        'appointment_date.date_format' => 'El formato de la fecha es inválido.',
-        'appointment_date.required' => 'La fecha de la cita es obligatoria.',
-    ]);
-
-    try {
-        $appointmentDate = Carbon::parse($validated['appointment_date']);
-        $duration = (int) config('app.appointment_duration', 20);
-
-        // Validar que la fecha sea futura
-        if ($appointmentDate->isPast()) {
-            return back()->withErrors([
-                'appointment_date' => 'No puedes agendar una cita en el pasado.'
-            ])->withInput();
-        }
-
-        // Resto del código igual...
-        $hasConflict = Appointment::where('doctor_id', $validated['doctor_id'])
-            ->whereBetween('appointment_date', [
-                $appointmentDate->copy()->subMinutes($duration),
-                $appointmentDate->copy()->addMinutes($duration)
-            ])
-            ->whereIn('status', ['pendiente', 'confirmada'])
-            ->exists();
-
-        if ($hasConflict) {
-            return back()->withErrors([
-                'appointment_date' => 'Este horario ya está ocupado. Por favor selecciona otro.'
-            ])->withInput();
-        }
-
-        $doctor = Doctor::with('schedules')->findOrFail($validated['doctor_id']);
-        $dayOfWeek = $appointmentDate->dayOfWeek;
-        $timeSlot = $appointmentDate->format('H:i:s');
-
-        $isAvailable = $doctor->schedules()
-            ->where('day_of_week', $dayOfWeek)
-            ->where('start_time', '<=', $timeSlot)
-            ->where('end_time', '>', $timeSlot)
-            ->exists();
-
-        if (!$isAvailable) {
-            return back()->withErrors([
-                'appointment_date' => 'El médico no atiende en este horario.'
-            ])->withInput();
-        }
-
-        $appointment = Appointment::create([
-            'doctor_id' => $validated['doctor_id'],
-            'patient_name' => $validated['patient_name'],
-            'patient_email' => $validated['patient_email'],
-            'patient_phone' => $validated['patient_phone'],
-            'reason' => $validated['reason'],
-            'appointment_date' => $appointmentDate,
-            'duration_minutes' => $duration,
-            'status' => 'pendiente',
+        $validated = $request->validate([
+            'doctor_id' => 'required|exists:doctors,id',
+            'patient_name' => 'required|string|max:255',
+            'patient_email' => 'required|email|max:255',
+            'patient_phone' => 'required|string|max:20',
+            'reason' => 'nullable|string|max:500',
+            'appointment_date' => 'required|date_format:Y-m-d H:i:s',
         ]);
-
-        // Log de éxito
-        \Log::info('Cita creada:', ['id' => $appointment->id]);
 
         try {
-            Mail::to($validated['patient_email'])
-                ->send(new AppointmentCreated($appointment));
+            $appointmentDate = Carbon::parse($validated['appointment_date']);
+            $duration = (int) config('app.appointment_duration', 20);
+
+            if ($appointmentDate->isPast()) {
+                return back()->withErrors([
+                    'appointment_date' => 'No puedes agendar una cita en el pasado.'
+                ])->withInput();
+            }
+
+            $hasConflict = Appointment::where('doctor_id', $validated['doctor_id'])
+                ->whereBetween('appointment_date', [
+                    $appointmentDate->copy()->subMinutes($duration),
+                    $appointmentDate->copy()->addMinutes($duration)
+                ])
+                ->whereIn('status', ['pendiente', 'confirmada'])
+                ->exists();
+
+            if ($hasConflict) {
+                return back()->withErrors([
+                    'appointment_date' => 'Este horario ya está ocupado. Selecciona otro.'
+                ])->withInput();
+            }
+
+            $doctor = Doctor::with('schedules')->findOrFail($validated['doctor_id']);
+            $dayOfWeek = $appointmentDate->dayOfWeek;
+            $timeSlot = $appointmentDate->format('H:i:s');
+
+            $isAvailable = $doctor->schedules()
+                ->where('day_of_week', $dayOfWeek)
+                ->where('start_time', '<=', $timeSlot)
+                ->where('end_time', '>', $timeSlot)
+                ->exists();
+
+            if (!$isAvailable) {
+                return back()->withErrors([
+                    'appointment_date' => 'El médico no atiende en este horario.'
+                ])->withInput();
+            }
+
+            $appointment = Appointment::create([
+                'doctor_id' => $validated['doctor_id'],
+                'patient_name' => $validated['patient_name'],
+                'patient_email' => $validated['patient_email'],
+                'patient_phone' => $validated['patient_phone'],
+                'reason' => $validated['reason'],
+                'appointment_date' => $appointmentDate,
+                'duration_minutes' => $duration,
+                'status' => 'pendiente',
+            ]);
+
+            \Log::info('Cita creada:', ['id' => $appointment->id]);
+
+            // Enviar correo de creación
+            try {
+                Mail::to($validated['patient_email'])
+                    ->send(new AppointmentCreated($appointment));
+            } catch (\Exception $e) {
+                \Log::error('Error enviando correo: ' . $e->getMessage());
+            }
+
+            return redirect()->route('public.index')
+                ->with('success', '¡Cita agendada exitosamente! Revisa tu correo.');
+
         } catch (\Exception $e) {
-            \Log::error('Error enviando correo: ' . $e->getMessage());
+            \Log::error('Error al crear cita:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->withErrors([
+                'error' => 'Hubo un error al agendar la cita.'
+            ])->withInput();
         }
-
-        return redirect()->route('public.index')
-            ->with('success', '¡Cita agendada exitosamente! Recibirás un correo de confirmación.');
-
-    } catch (\Exception $e) {
-        \Log::error('Error al crear cita:', [
-            'message' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        
-        return back()->withErrors([
-            'error' => 'Hubo un error al agendar la cita: ' . $e->getMessage()
-        ])->withInput();
     }
-}
 
     // Mostrar detalles de una cita
     public function show(Appointment $appointment)
@@ -157,7 +151,6 @@ public function store(Request $request)
 
         $appointment->update(['status' => 'confirmada']);
 
-        // Enviar correo
         try {
             Mail::to($appointment->patient_email)
                 ->send(new AppointmentStatusChanged($appointment, 'aceptada'));
@@ -165,7 +158,7 @@ public function store(Request $request)
             \Log::error('Error enviando correo: ' . $e->getMessage());
         }
 
-        return back()->with('success', 'Cita aceptada y correo enviado al paciente.');
+        return back()->with('success', 'Cita aceptada y correo enviado.');
     }
 
     // Rechazar cita
@@ -182,7 +175,6 @@ public function store(Request $request)
             'notes' => $request->notes ?? 'Cita rechazada por el administrador.'
         ]);
 
-        // Enviar correo
         try {
             Mail::to($appointment->patient_email)
                 ->send(new AppointmentStatusChanged($appointment, 'rechazada'));
@@ -190,10 +182,31 @@ public function store(Request $request)
             \Log::error('Error enviando correo: ' . $e->getMessage());
         }
 
-        return back()->with('success', 'Cita rechazada y correo enviado al paciente.');
+        return back()->with('success', 'Cita rechazada y correo enviado.');
     }
 
-    // Cancelar cita
+    // Actualizar estado desde vista admin (confirmada o rechazada)
+    public function updateStatus(Request $request, Appointment $appointment)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:confirmada,rechazada'
+        ]);
+
+        $appointment->update([
+            'status' => $validated['status']
+        ]);
+
+        try {
+            Mail::to($appointment->patient_email)
+                ->send(new AppointmentStatusChanged($appointment, $validated['status']));
+        } catch (\Exception $e) {
+            \Log::error('Error enviando correo: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Estado actualizado y correo enviado al paciente.');
+    }
+
+    // Eliminar cita
     public function destroy(Appointment $appointment)
     {
         $appointment->delete();

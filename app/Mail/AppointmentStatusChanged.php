@@ -16,13 +16,19 @@ class AppointmentStatusChanged extends Mailable
     public $appointment;
     public $action;
 
+    /**
+     * Create a new message instance.
+     */
     public function __construct(Appointment $appointment, string $action)
     {
-        $this->appointment = $appointment;
+        $this->appointment = $appointment->load('doctor');
         $this->action = $action;
     }
 
-    public function envelope()
+    /**
+     * Get the message envelope.
+     */
+    public function envelope(): Envelope
     {
         $subject = $this->action === 'aceptada' 
             ? 'Cita Confirmada - Cirugía General'
@@ -33,10 +39,23 @@ class AppointmentStatusChanged extends Mailable
         );
     }
 
-    public function content()
+    /**
+     * Get the message content definition.
+     */
+    public function content(): Content
     {
         return new Content(
             view: 'emails.appointment-status-changed',
         );
+    }
+
+    /**
+     * Get the attachments for the message.
+     *
+     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
+     */
+    public function attachments(): array
+    {
+        return [];
     }
 }

@@ -29,22 +29,30 @@ Route::middleware([
     // Calendario
     Route::get('/calendar', [DashboardController::class, 'calendar'])->name('calendar');
     
-    // Listado de citas (para "Todas las Citas")
+    // Listado de citas
     Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
     
-    // Ver detalle de una cita
-    Route::get('/appointments/{appointment}', [AppointmentController::class, 'show'])->name('appointments.show');
+    // IMPORTANTE: Las rutas de accept/reject deben ir ANTES de la ruta show
+    // para que Laravel no confunda "accept" con un ID
+    Route::post('/appointments/{appointment}/accept', [AppointmentController::class, 'accept'])
+        ->name('appointments.accept');
     
-    // Acciones sobre citas
-    Route::post('/appointments/{appointment}/accept', [AppointmentController::class, 'accept'])->name('appointments.accept');
-    Route::post('/appointments/{appointment}/reject', [AppointmentController::class, 'reject'])->name('appointments.reject');
-    Route::delete('/appointments/{appointment}', [AppointmentController::class, 'destroy'])->name('appointments.destroy');
+    Route::post('/appointments/{appointment}/reject', [AppointmentController::class, 'reject'])
+        ->name('appointments.reject');
     
-    // CRUD de Médicos
+    // Ver detalle de cita (DESPUÉS de accept/reject)
+    Route::get('/appointments/{appointment}', [AppointmentController::class, 'show'])
+        ->name('appointments.show');
+    
+    // Eliminar cita
+    Route::delete('/appointments/{appointment}', [AppointmentController::class, 'destroy'])
+        ->name('appointments.destroy');
+
+    // CRUD médicos
     Route::resource('doctors', DoctorController::class);
 });
 
-// Fallback para /dashboard sin prefijo (redirect a /admin/dashboard)
+// Fallback para /dashboard sin prefijo
 Route::get('/dashboard', function () {
     return redirect('/admin/dashboard');
 })->middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->name('dashboard');

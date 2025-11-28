@@ -15,22 +15,41 @@ class AppointmentCreated extends Mailable
 
     public $appointment;
 
+    /**
+     * Create a new message instance.
+     */
     public function __construct(Appointment $appointment)
     {
-        $this->appointment = $appointment;
+        $this->appointment = $appointment->load('doctor');
     }
 
-    public function envelope()
+    /**
+     * Get the message envelope.
+     */
+    public function envelope(): Envelope
     {
         return new Envelope(
             subject: 'Cita Médica Agendada - Cirugía General',
         );
     }
 
-    public function content()
+    /**
+     * Get the message content definition.
+     */
+    public function content(): Content
     {
         return new Content(
             view: 'emails.appointment-created',
         );
+    }
+
+    /**
+     * Get the attachments for the message.
+     *
+     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
+     */
+    public function attachments(): array
+    {
+        return [];
     }
 }

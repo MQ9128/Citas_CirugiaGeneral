@@ -222,11 +222,13 @@ const getStatusColor = (status) => {
                                 </div>
 
                                 <div class="flex gap-2">
-                                    <Link :href="route('admin.appointments.accept', appointment.slug)" method="post" as="button"
+                                    <Link :href="route('admin.appointments.accept', appointment.id)" method="post"
+                                        as="button"
                                         class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-semibold">
                                     Aceptar
                                     </Link>
-                                    <Link :href="route('admin.appointments.reject', appointment.slug)"method="post" as="button"
+                                    <Link :href="route('admin.appointments.reject', appointment.id)" method="post"
+                                        as="button"
                                         class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-semibold">
                                     Rechazar
                                     </Link>
