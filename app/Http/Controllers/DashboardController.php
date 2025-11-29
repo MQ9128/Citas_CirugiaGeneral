@@ -57,10 +57,16 @@ class DashboardController extends Controller
     public function calendar(Request $request)
     {
         $doctorSlug = $request->get('doctor');
-        $weekStart = $request->get('week_start', now()->startOfWeek()->toDateString());
+        $weekStartParam = $request->get('week_start');
 
-        $startDate = Carbon::parse($weekStart)->startOfWeek();
-        $endDate = $startDate->copy()->endOfWeek();
+        // Si viene en la URL, lo usamos; si no, hoy.
+        $startDate = $weekStartParam
+            ? Carbon::parse($weekStartParam)
+            : now();
+
+        // Fuerza a que la semana empiece en LUNES
+        $startDate = $startDate->startOfWeek(Carbon::MONDAY);
+        $endDate = $startDate->copy()->endOfWeek(Carbon::SUNDAY);
 
         $query = Appointment::with('doctor')
             ->whereBetween('appointment_date', [$startDate, $endDate])
@@ -82,7 +88,7 @@ class DashboardController extends Controller
             'doctors' => $doctors,
             'weekStart' => $startDate->toDateString(),
             'weekEnd' => $endDate->toDateString(),
-            'selectedDoctor' => $doctorSlug ?? null
+            'selectedDoctor' => $doctorSlug ?? null,
         ]);
     }
 }
