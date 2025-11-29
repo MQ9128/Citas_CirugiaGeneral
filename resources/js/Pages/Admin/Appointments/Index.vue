@@ -128,7 +128,7 @@ const formatDateTime = (datetime) => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">{{ formatDateTime(appointment.appointment_date)
-                                    }}</div>
+                                        }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span :class="getStatusColor(appointment.status)"
@@ -151,6 +151,13 @@ const formatDateTime = (datetime) => {
                                             :href="route('admin.appointments.reject', appointment.id)" method="post"
                                             as="button" class="text-red-600 hover:text-red-900">
                                         Rechazar
+                                        </Link>
+                                        <!-- NUEVO: Botón completar -->
+                                        <Link
+                                            v-if="appointment.status === 'confirmada' && new Date(appointment.appointment_date) < new Date()"
+                                            :href="route('admin.appointments.complete', appointment.id)" method="post"
+                                            as="button" class="text-blue-600 hover:text-blue-900">
+                                        Completar
                                         </Link>
                                     </div>
                                 </td>

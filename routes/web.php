@@ -32,15 +32,18 @@ Route::middleware([
     // Listado de citas
     Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
     
-    // IMPORTANTE: Las rutas de accept/reject deben ir ANTES de la ruta show
-    // para que Laravel no confunda "accept" con un ID
+    // Aceptar, rechazar y completar citas
     Route::post('/appointments/{appointment}/accept', [AppointmentController::class, 'accept'])
         ->name('appointments.accept');
     
     Route::post('/appointments/{appointment}/reject', [AppointmentController::class, 'reject'])
         ->name('appointments.reject');
     
-    // Ver detalle de cita (DESPUÉS de accept/reject)
+    // ← NUEVA RUTA: Completar cita
+    Route::post('/appointments/{appointment}/complete', [AppointmentController::class, 'complete'])
+        ->name('appointments.complete');
+    
+    // Ver detalle de cita
     Route::get('/appointments/{appointment}', [AppointmentController::class, 'show'])
         ->name('appointments.show');
     

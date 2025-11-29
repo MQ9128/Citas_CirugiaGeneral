@@ -1,5 +1,4 @@
 <script setup>
-import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -7,18 +6,31 @@ const props = defineProps({
     appointmentDate: String
 });
 
-// Convertir la fecha a formato ISO sin timezone
-const parseAppointmentDate = (dateString) => {
-    const date = new Date(dateString);
-    // Formato: YYYY-MM-DD HH:mm:ss
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = '00';
-    
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+const formatAppointmentDate = (dateString) => {
+    try {
+        if (dateString && dateString.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+            return dateString;
+        }
+        
+        const date = new Date(dateString);
+        
+        if (isNaN(date.getTime())) {
+            console.error('Fecha inválida:', dateString);
+            return '';
+        }
+        
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = '00';
+        
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+        console.error('Error formateando fecha:', error);
+        return '';
+    }
 };
 
 const form = useForm({
@@ -26,32 +38,56 @@ const form = useForm({
     patient_name: '',
     patient_email: '',
     patient_phone: '',
+    patient_cedula: '', // ← Agregar aquí
     reason: '',
-    appointment_date: parseAppointmentDate(props.appointmentDate) // ← Cambio aquí
+    appointment_date: formatAppointmentDate(props.appointmentDate)
 });
 
 const submit = () => {
+    if (!form.patient_name || !form.patient_email || !form.patient_phone || !form.patient_cedula) {
+        alert('Por favor completa todos los campos obligatorios');
+        return;
+    }
+    
+    if (!form.appointment_date) {
+        alert('Error con la fecha de la cita. Por favor intenta de nuevo.');
+        return;
+    }
+    
     form.post('/appointments', {
         preserveScroll: true,
-        onSuccess: (response) => {
+        onSuccess: () => {
             console.log('Cita creada exitosamente');
         },
         onError: (errors) => {
-            console.error('Errores:', errors);
+            console.error('Errores de validación:', errors);
+            let errorMessage = 'Errores en el formulario:\n';
+            for (let field in errors) {
+                errorMessage += `- ${field}: ${errors[field]}\n`;
+            }
+            alert(errorMessage);
         }
     });
 };
 
 const formatDateTime = (datetime) => {
-    const date = new Date(datetime);
-    return date.toLocaleString('es', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    if (!datetime) return 'Fecha no disponible';
+    
+    try {
+        const date = new Date(datetime);
+        if (isNaN(date.getTime())) return 'Fecha inválida';
+        
+        return date.toLocaleString('es', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        return 'Error en fecha';
+    }
 };
 </script>
 
@@ -103,6 +139,26 @@ const formatDateTime = (datetime) => {
                         </div>
                     </div>
 
+                    <!-- NUEVO CAMPO: Cédula -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Cédula de Ciudadanía *
+                        </label>
+                        <input
+                            v-model="form.patient_cedula"
+                            type="text"
+                            required
+                            maxlength="20"
+                            pattern="[0-9]+"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            placeholder="Ej: 1234567890"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">Solo números, sin puntos ni comas</p>
+                        <div v-if="form.errors.patient_cedula" class="text-red-600 text-sm mt-1">
+                            {{ form.errors.patient_cedula }}
+                        </div>
+                    </div>
+
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Correo Electrónico *
@@ -150,6 +206,12 @@ const formatDateTime = (datetime) => {
                         </div>
                     </div>
 
+                    <div v-if="form.errors.appointment_date" class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <p class="text-sm text-red-800">
+                            <strong>Error:</strong> {{ form.errors.appointment_date }}
+                        </p>
+                    </div>
+
                     <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                         <p class="text-sm text-yellow-800">
                             <strong>Nota:</strong> Tu cita quedará en estado pendiente hasta que el médico la confirme. 
@@ -167,9 +229,10 @@ const formatDateTime = (datetime) => {
                         <button
                             type="submit"
                             :disabled="form.processing"
-                            class="flex-1 py-3 px-6 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-semibold disabled:opacity-50"
+                            class="flex-1 py-3 px-6 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {{ form.processing ? 'Agendando...' : 'Confirmar Cita' }}
+                            <span v-if="form.processing">Agendando...</span>
+                            <span v-else>Confirmar Cita</span>
                         </button>
                     </div>
                 </form>

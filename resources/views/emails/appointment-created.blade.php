@@ -18,6 +18,7 @@
         
         <div class="content">
             <p>Estimado/a <strong>{{ $appointment->patient_name }}</strong>,</p>
+            <p><strong>Cédula:</strong> {{ $appointment->patient_cedula }}</p>
             
             <p>Su cita médica ha sido agendada exitosamente. Los detalles son:</p>
             

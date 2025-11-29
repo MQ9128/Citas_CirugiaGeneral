@@ -11,9 +11,17 @@ class Appointment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'slug', 'doctor_id', 'patient_name', 'patient_email', 
-        'patient_phone', 'reason', 'appointment_date', 
-        'duration_minutes', 'status', 'notes'
+        'slug',
+        'doctor_id',
+        'patient_name',
+        'patient_email',
+        'patient_phone',
+        'patient_cedula', // ← Agregar aquí
+        'reason',
+        'appointment_date',
+        'duration_minutes',
+        'status',
+        'notes'
     ];
 
     protected $casts = [
@@ -29,7 +37,7 @@ class Appointment extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($appointment) {
             if (empty($appointment->slug)) {
                 $appointment->slug = Str::random(10);

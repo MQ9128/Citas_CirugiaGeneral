@@ -50,6 +50,7 @@ class AppointmentController extends Controller
             'patient_name' => 'required|string|max:255',
             'patient_email' => 'required|email|max:255',
             'patient_phone' => 'required|string|max:20',
+            'patient_cedula' => 'required|string|max:20', // ← Agregar aquí
             'reason' => 'nullable|string|max:500',
             'appointment_date' => 'required|date_format:Y-m-d H:i:s',
         ]);
@@ -99,6 +100,7 @@ class AppointmentController extends Controller
                 'patient_name' => $validated['patient_name'],
                 'patient_email' => $validated['patient_email'],
                 'patient_phone' => $validated['patient_phone'],
+                'patient_cedula' => $validated['patient_cedula'], // ← Agregar aquí
                 'reason' => $validated['reason'],
                 'appointment_date' => $appointmentDate,
                 'duration_minutes' => $duration,
@@ -107,7 +109,6 @@ class AppointmentController extends Controller
 
             \Log::info('Cita creada:', ['id' => $appointment->id]);
 
-            // Enviar correo de creación
             try {
                 Mail::to($validated['patient_email'])
                     ->send(new AppointmentCreated($appointment));
@@ -184,7 +185,27 @@ class AppointmentController extends Controller
 
         return back()->with('success', 'Cita rechazada y correo enviado.');
     }
+    // Marcar cita como completada
+    public function complete(Appointment $appointment)
+    {
+        if ($appointment->status !== 'confirmada') {
+            return back()->withErrors([
+                'status' => 'Solo se pueden completar citas confirmadas.'
+            ]);
+        }
 
+        // Verificar que la fecha de la cita ya haya pasado
+        if ($appointment->appointment_date->isFuture()) {
+            return back()->withErrors([
+                'status' => 'No puedes completar una cita que aún no ha ocurrido.'
+            ]);
+        }
+
+        $appointment->update(['status' => 'completada']);
+
+        return back()->with('success', 'Cita marcada como completada.');
+    }
+    
     // Actualizar estado desde vista admin (confirmada o rechazada)
     public function updateStatus(Request $request, Appointment $appointment)
     {
