@@ -50,7 +50,7 @@ class AppointmentController extends Controller
             'patient_name' => 'required|string|max:255',
             'patient_email' => 'required|email|max:255',
             'patient_phone' => 'required|string|max:20',
-            'patient_cedula' => 'required|string|max:20', // ← Agregar aquí
+            'patient_cedula' => 'required|string|max:20',
             'reason' => 'nullable|string|max:500',
             'appointment_date' => 'required|date_format:Y-m-d H:i:s',
         ]);
@@ -65,17 +65,27 @@ class AppointmentController extends Controller
                 ])->withInput();
             }
 
+            // Calcular el inicio y fin de la nueva cita
+            $newStart = $appointmentDate;
+            $newEnd = $appointmentDate->copy()->addMinutes($duration);
+
+            // Buscar citas que se traslapen con el nuevo horario
+            // Una cita se traslapa si:
+            // - Empieza ANTES de que termine la nueva cita Y
+            // - Termina DESPUÉS de que empiece la nueva cita
             $hasConflict = Appointment::where('doctor_id', $validated['doctor_id'])
-                ->whereBetween('appointment_date', [
-                    $appointmentDate->copy()->subMinutes($duration),
-                    $appointmentDate->copy()->addMinutes($duration)
-                ])
                 ->whereIn('status', ['pendiente', 'confirmada'])
+                ->where(function ($query) use ($newStart, $newEnd, $duration) {
+                    $query->where(function ($q) use ($newStart, $newEnd, $duration) {
+                        $q->whereRaw("appointment_date < ?", [$newEnd])
+                            ->whereRaw("appointment_date + (duration_minutes || ' minutes')::interval > ?", [$newStart]);
+                    });
+                })
                 ->exists();
 
             if ($hasConflict) {
                 return back()->withErrors([
-                    'appointment_date' => 'Este horario ya está ocupado. Selecciona otro.'
+                    'appointment_date' => 'Este horario ya está ocupado. Por favor selecciona otro.'
                 ])->withInput();
             }
 
@@ -100,7 +110,7 @@ class AppointmentController extends Controller
                 'patient_name' => $validated['patient_name'],
                 'patient_email' => $validated['patient_email'],
                 'patient_phone' => $validated['patient_phone'],
-                'patient_cedula' => $validated['patient_cedula'], // ← Agregar aquí
+                'patient_cedula' => $validated['patient_cedula'],
                 'reason' => $validated['reason'],
                 'appointment_date' => $appointmentDate,
                 'duration_minutes' => $duration,
@@ -205,7 +215,7 @@ class AppointmentController extends Controller
 
         return back()->with('success', 'Cita marcada como completada.');
     }
-    
+
     // Actualizar estado desde vista admin (confirmada o rechazada)
     public function updateStatus(Request $request, Appointment $appointment)
     {
